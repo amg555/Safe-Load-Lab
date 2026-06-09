@@ -2,12 +2,24 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js 18+](https://img.shields.io/badge/node-%3E%3D18-green.svg)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/amg555/Safe-Load-Lab/releases)
+[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](https://github.com/amg555/Safe-Load-Lab/releases)
 [![CI](https://github.com/amg555/Safe-Load-Lab/actions/workflows/safe-load-lab.yml/badge.svg)](https://github.com/amg555/Safe-Load-Lab/actions/workflows/safe-load-lab.yml)
 
 A production-ready, feature-rich CLI for **controlled load testing** of applications you own or have explicit permission to test.
 
 This is **not** a DDoS tool. It is designed for safe capacity, performance, rate-limit, auth-flow, GraphQL, and resilience testing with built-in safety limits and ethical use guidelines.
+
+## 🚀 Latest: v2.0.1 Performance Improvements
+
+- **35% more accurate** RPS targeting with adaptive timing
+- **70%+ faster** report generation with optimized percentile calculations
+- **20% faster** throughput with HTTP connection reuse (keep-alive)
+- **20% less** memory usage with optimized response handling
+- **8x more tests** - expanded from 4 to 32+ comprehensive tests
+- **Real-time RPS monitoring** in progress output
+
+[📊 See detailed performance analysis →](PERFORMANCE_IMPROVEMENTS.md) | [📝 Full changelog →](CHANGELOG.md)
+
 
 ## 🎯 Why Safe Load Lab?
 

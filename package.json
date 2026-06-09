@@ -1,6 +1,6 @@
 {
   "name": "safe-load-lab",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Advanced controlled load-testing CLI with spike, soak, stress tests, webhooks, and real-time monitoring for applications you own or have permission to test",
   "type": "module",
   "bin": {
@@ -12,7 +12,12 @@
     "start": "node ./bin/safe-load-lab.js",
     "example": "node ./bin/safe-load-lab.js run --config examples/basic.json --i-own-this-target",
     "validate": "node ./bin/safe-load-lab.js validate --config examples/basic.json",
-    "test": "node --test",
+    "test": "node --test tests/*.test.mjs",
+    "test:unit": "node --test tests/unit.test.mjs",
+    "test:performance": "node --test tests/performance.test.mjs",
+    "test:integration": "node --test tests/integration.test.mjs",
+    "test:smoke": "node --test tests/smoke.test.mjs",
+    "test:all": "node --test tests/*.test.mjs",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix"
   },

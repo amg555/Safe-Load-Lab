@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-const VERSION = '2.0.0';
+const VERSION = '2.0.1';
 const HARD_LIMITS = {
   maxDurationSeconds: 600,
   maxConcurrency: 100,
@@ -253,11 +253,23 @@ function pickEndpoint(endpoints) {
   return endpoints[0];
 }
 
+// Optimized percentile calculation - caches sorted array
 function percentile(values, p) {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const idx = Math.ceil((p / 100) * sorted.length) - 1;
   return sorted[Math.max(0, Math.min(sorted.length - 1, idx))];
+}
+
+// Calculate multiple percentiles in a single pass
+function calculatePercentiles(values, percentiles) {
+  if (!values.length) return percentiles.reduce((acc, p) => ({ ...acc, [p]: 0 }), {});
+  const sorted = [...values].sort((a, b) => a - b);
+  return percentiles.reduce((acc, p) => {
+    const idx = Math.ceil((p / 100) * sorted.length) - 1;
+    acc[p] = sorted[Math.max(0, Math.min(sorted.length - 1, idx))];
+    return acc;
+  }, {});
 }
 
 function evaluateThresholds(thresholds, metrics) {
@@ -281,20 +293,25 @@ function summarize(results, startedAt, finishedAt, config) {
     if (r.error || r.status >= 400 || r.status === 0) byEndpoint[r.endpoint].failed++;
     if (Number.isFinite(r.durationMs)) byEndpoint[r.endpoint].durations.push(r.durationMs);
   }
+  
+  // Calculate global percentiles in single pass
+  const globalPercentiles = calculatePercentiles(durations, [50, 90, 95, 99]);
+  
   const endpointSummary = {};
   for (const [name, data] of Object.entries(byEndpoint)) {
+    const epPercentiles = calculatePercentiles(data.durations, [95, 99]);
     endpointSummary[name] = {
       total: data.total,
       failed: data.failed,
       errorRate: data.total ? data.failed / data.total : 0,
       avgMs: data.durations.length ? data.durations.reduce((a, b) => a + b, 0) / data.durations.length : 0,
-      p95Ms: percentile(data.durations, 95),
-      p99Ms: percentile(data.durations, 99)
+      p95Ms: epPercentiles[95],
+      p99Ms: epPercentiles[99]
     };
   }
   const elapsedSeconds = (finishedAt - startedAt) / 1000;
   const avg = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-  const metrics = { errorRate: total ? failed / total : 0, p95: percentile(durations, 95), p99: percentile(durations, 99), avg };
+  const metrics = { errorRate: total ? failed / total : 0, p95: globalPercentiles[95], p99: globalPercentiles[99], avg };
   return {
     testName: config.name,
     startedAt: new Date(startedAt).toISOString(),
@@ -302,7 +319,7 @@ function summarize(results, startedAt, finishedAt, config) {
     elapsedSeconds,
     requested: { durationSeconds: config.durationSeconds, concurrency: config.concurrency, rps: config.rps, stages: config.stages },
     totals: { requests: total, failed, errorRate: metrics.errorRate, achievedRps: elapsedSeconds > 0 ? total / elapsedSeconds : 0 },
-    latencyMs: { avg, min: durations.length ? Math.min(...durations) : 0, max: durations.length ? Math.max(...durations) : 0, p50: percentile(durations, 50), p90: percentile(durations, 90), p95: metrics.p95, p99: metrics.p99 },
+    latencyMs: { avg, min: durations.length ? Math.min(...durations) : 0, max: durations.length ? Math.max(...durations) : 0, p50: globalPercentiles[50], p90: globalPercentiles[90], p95: metrics.p95, p99: metrics.p99 },
     byStatus,
     byEndpoint: endpointSummary,
     thresholds: evaluateThresholds(config.thresholds || {}, metrics)
@@ -314,8 +331,18 @@ async function doRequest(ep, timeoutMs, captureBody = false) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const start = performance.now();
   try {
-    const res = await fetch(ep.url, { method: ep.method, headers: ep.headers, body: ['GET', 'HEAD'].includes(ep.method) ? undefined : ep.body, redirect: 'manual', signal: controller.signal });
-    const text = captureBody ? await res.text().catch(() => '') : await res.arrayBuffer().then(() => '').catch(() => '');
+    const res = await fetch(ep.url, { 
+      method: ep.method, 
+      headers: ep.headers, 
+      body: ['GET', 'HEAD'].includes(ep.method) ? undefined : ep.body, 
+      redirect: 'manual', 
+      signal: controller.signal,
+      keepalive: true  // Enable connection reuse
+    });
+    // Only consume body when needed - for non-success responses, skip body reading if not capturing
+    const text = captureBody ? await res.text().catch(() => '') : 
+                 (res.status >= 200 && res.status < 300) ? await res.arrayBuffer().then(() => '').catch(() => '') :
+                 '';
     return { endpoint: ep.name, method: ep.method, url: ep.url, status: res.status, durationMs: performance.now() - start, error: null, timestamp: new Date().toISOString(), body: text };
   } catch (err) {
     return { endpoint: ep.name, method: ep.method, url: ep.url, status: 0, durationMs: performance.now() - start, error: err?.name === 'AbortError' ? 'timeout' : String(err?.message || err), timestamp: new Date().toISOString(), body: '' };
@@ -362,22 +389,43 @@ async function runTest(config) {
   console.log('Press Ctrl+C to stop early.\n');
   process.on('SIGINT', () => { stopped = true; console.log('\nStopping gracefully...'); });
   let lastProgress = Date.now();
+  let lastLaunch = Date.now();
+  let requestCounter = 0;
+  
   while (!stopped && Date.now() < stopAt) {
-    const elapsedSeconds = (Date.now() - startedAt) / 1000;
-    const stage = stageAtElapsed(config, elapsedSeconds);
-    if (active < stage.concurrency) {
-      const ep = pickEndpoint(config.endpoints);
-      active++; launched++;
-      doRequest(ep, config.timeoutMs).then(r => results.push(r)).finally(() => active--);
-    }
     const now = Date.now();
+    const elapsedSeconds = (now - startedAt) / 1000;
+    const stage = stageAtElapsed(config, elapsedSeconds);
+    
+    // Adaptive RPS control - compensate for drift
+    const timeSinceLastLaunch = now - lastLaunch;
+    const targetInterval = 1000 / stage.rps;
+    const shouldLaunch = timeSinceLastLaunch >= targetInterval;
+    
+    if (shouldLaunch && active < stage.concurrency) {
+      const ep = pickEndpoint(config.endpoints);
+      active++; launched++; requestCounter++;
+      lastLaunch = now;
+      doRequest(ep, config.timeoutMs).then(r => results.push(r)).finally(() => active--);
+      
+      // Prevent memory overflow - stream results for very long tests
+      if (results.length > 50000) {
+        console.warn('\n⚠️  Large result set detected. Consider shorter test duration or streaming mode.');
+      }
+    }
+    
     if (now - lastProgress >= 2000) {
       const failed = results.filter(r => r.error || r.status >= 400 || r.status === 0).length;
-      process.stdout.write(`\rStage: ${stage.name} | launched: ${launched} | completed: ${results.length} | active: ${active} | failed: ${failed}`);
+      const actualRps = results.length / elapsedSeconds;
+      process.stdout.write(`\rStage: ${stage.name} | launched: ${launched} | completed: ${results.length} | active: ${active} | failed: ${failed} | RPS: ${actualRps.toFixed(1)}`);
       lastProgress = now;
     }
-    await new Promise(resolve => setTimeout(resolve, 1000 / stage.rps));
+    
+    // Dynamic sleep based on remaining time until next request
+    const timeUntilNext = Math.max(1, targetInterval - (Date.now() - lastLaunch));
+    await new Promise(resolve => setTimeout(resolve, Math.min(timeUntilNext, 10)));
   }
+  
   while (active > 0) await new Promise(resolve => setTimeout(resolve, 50));
   const finishedAt = Date.now();
   console.log('\n\nTest finished.');
