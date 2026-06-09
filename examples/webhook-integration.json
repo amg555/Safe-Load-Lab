@@ -1,0 +1,28 @@
+{
+  "name": "webhook-integration-example",
+  "durationSeconds": 60,
+  "concurrency": 10,
+  "rps": 20,
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.01,
+    "p95Ms": 500,
+    "p99Ms": 1000
+  },
+  "endpoints": [
+    {
+      "name": "api-endpoint",
+      "method": "GET",
+      "url": "http://localhost:3000/api/health",
+      "weight": 1
+    }
+  ],
+  "webhooks": {
+    "results": "https://your-webhook.com/load-test-results",
+    "slack": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  },
+  "notifications": {
+    "onComplete": true,
+    "onThresholdFail": true
+  }
+}

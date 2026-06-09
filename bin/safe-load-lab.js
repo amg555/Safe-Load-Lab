@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-const VERSION = '1.2.0';
+const VERSION = '2.0.0';
 const HARD_LIMITS = {
   maxDurationSeconds: 600,
   maxConcurrency: 100,
@@ -22,13 +22,17 @@ Usage:
   sll run --url <url> --duration 60 --concurrency 10 --rps 20 --i-own-this-target
 
 Commands:
-  run        Run a controlled load test
-  validate   Validate and normalize a config without sending traffic
-  plan       Show resolved test plan without sending traffic
-  sample     Create a sample config file
-  rate-limit Safe rate-limit verification for owned endpoints
-  version    Show version
-  help       Show help
+  run         Run a controlled load test
+  validate    Validate and normalize a config without sending traffic
+  plan        Show resolved test plan without sending traffic
+  sample      Create a sample config file
+  rate-limit  Safe rate-limit verification for owned endpoints
+  compare     Compare two test reports
+  spike       Run a spike test (sudden traffic increase)
+  soak        Run a soak test (sustained load over time)
+  stress      Run a stress test (gradually increasing load)
+  version     Show version
+  help        Show help
 
 Required safety flag for run/rate-limit:
   --i-own-this-target       Confirms you own or have explicit permission to test the target
@@ -48,6 +52,11 @@ Common options:
   --html <file>             Save standalone HTML report
   --junit <file>            Save JUnit XML summary for CI
   --env <name>              Use config environment profile
+  --webhook <url>           Send results to webhook URL
+  --slack <url>             Send results to Slack webhook
+  --compare <file>          Compare with previous report
+  --realistic               Use realistic traffic patterns (random spacing)
+  --verbose                 Enable verbose logging
 
 Examples:
   sll sample --out load-test.json
@@ -496,6 +505,176 @@ function createSample(out = 'load-test.json') {
   console.log(`Created sample config: ${out}`);
 }
 
+// New Feature: Compare two test reports
+function compareReports(file1Path, file2Path) {
+  const report1 = JSON.parse(fs.readFileSync(file1Path, 'utf8'));
+  const report2 = JSON.parse(fs.readFileSync(file2Path, 'utf8'));
+  const s1 = report1.summary;
+  const s2 = report2.summary;
+  
+  console.log('\n🔍 Report Comparison\n');
+  console.log(`Report 1: ${s1.testName} (${s1.startedAt})`);
+  console.log(`Report 2: ${s2.testName} (${s2.startedAt})\n`);
+  
+  const compare = (label, val1, val2, unit = '', lower = true) => {
+    const diff = val2 - val1;
+    const pct = val1 ? ((diff / val1) * 100).toFixed(2) : 'N/A';
+    const better = lower ? (diff < 0) : (diff > 0);
+    const icon = diff === 0 ? '=' : better ? '✅' : '⚠️ ';
+    const sign = diff > 0 ? '+' : '';
+    console.log(`${icon} ${label.padEnd(20)} ${val1.toFixed(2)}${unit} → ${val2.toFixed(2)}${unit} (${sign}${pct}%)`);
+  };
+  
+  compare('Requests', s1.totals.requests, s2.totals.requests, '', false);
+  compare('Failed', s1.totals.failed, s2.totals.failed, '', true);
+  compare('Error Rate', s1.totals.errorRate * 100, s2.totals.errorRate * 100, '%', true);
+  compare('Achieved RPS', s1.totals.achievedRps, s2.totals.achievedRps, '', false);
+  compare('Avg Latency', s1.latencyMs.avg, s2.latencyMs.avg, 'ms', true);
+  compare('p95 Latency', s1.latencyMs.p95, s2.latencyMs.p95, 'ms', true);
+  compare('p99 Latency', s1.latencyMs.p99, s2.latencyMs.p99, 'ms', true);
+  console.log();
+}
+
+// New Feature: Send webhook notification
+async function sendWebhook(url, summary) {
+  try {
+    const payload = {
+      testName: summary.testName,
+      timestamp: summary.finishedAt,
+      requests: summary.totals.requests,
+      failed: summary.totals.failed,
+      errorRate: summary.totals.errorRate,
+      rps: summary.totals.achievedRps,
+      latency: {
+        avg: summary.latencyMs.avg,
+        p95: summary.latencyMs.p95,
+        p99: summary.latencyMs.p99
+      },
+      thresholds: summary.thresholds
+    };
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    console.log(`✅ Webhook sent to ${url}`);
+  } catch (err) {
+    console.error(`⚠️  Webhook failed: ${err.message}`);
+  }
+}
+
+// New Feature: Send Slack notification
+async function sendSlackNotification(webhookUrl, summary) {
+  try {
+    const thresholdsPassed = Object.values(summary.thresholds || {}).every(t => t.pass);
+    const color = thresholdsPassed ? '#36a64f' : '#ff0000';
+    const emoji = thresholdsPassed ? '✅' : '❌';
+    
+    const message = {
+      attachments: [{
+        color,
+        title: `${emoji} Load Test: ${summary.testName}`,
+        fields: [
+          { title: 'Requests', value: summary.totals.requests.toString(), short: true },
+          { title: 'Failed', value: summary.totals.failed.toString(), short: true },
+          { title: 'Error Rate', value: `${(summary.totals.errorRate * 100).toFixed(2)}%`, short: true },
+          { title: 'RPS', value: summary.totals.achievedRps.toFixed(2), short: true },
+          { title: 'Avg Latency', value: `${summary.latencyMs.avg.toFixed(2)}ms`, short: true },
+          { title: 'p95 Latency', value: `${summary.latencyMs.p95.toFixed(2)}ms`, short: true }
+        ],
+        footer: 'Safe Load Lab',
+        ts: Math.floor(new Date(summary.finishedAt).getTime() / 1000)
+      }]
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    });
+    console.log('✅ Slack notification sent');
+  } catch (err) {
+    console.error(`⚠️  Slack notification failed: ${err.message}`);
+  }
+}
+
+// New Feature: Spike test (sudden traffic increase)
+async function runSpikeTest(args) {
+  if (!args.url && !args.config) throw new Error('spike requires --url or --config');
+  
+  const baseConfig = args.config ? JSON.parse(fs.readFileSync(args.config, 'utf8')) : {
+    endpoints: [{ url: args.url, method: args.method || 'GET' }]
+  };
+  
+  baseConfig.stages = [
+    { name: 'baseline', durationSeconds: 30, concurrency: 2, rps: 5 },
+    { name: 'spike', durationSeconds: 60, concurrency: 20, rps: 50 },
+    { name: 'recovery', durationSeconds: 30, concurrency: 2, rps: 5 }
+  ];
+  baseConfig.name = 'spike-test';
+  
+  const normalized = normalizeConfig({ ...args, _: ['run'], config: null });
+  normalized.stages = baseConfig.stages.map(normalizeStage);
+  normalized.durationSeconds = normalized.stages.reduce((sum, s) => sum + s.durationSeconds, 0);
+  
+  console.log('🚀 Starting Spike Test (baseline → spike → recovery)\n');
+  const { summary, results } = await runTest(normalized);
+  return { summary, results };
+}
+
+// New Feature: Soak test (sustained load)
+async function runSoakTest(args) {
+  if (!args.url && !args.config) throw new Error('soak requires --url or --config');
+  
+  const duration = Number(args.duration || 300); // 5 minutes default
+  if (duration > HARD_LIMITS.maxDurationSeconds) {
+    throw new Error(`Soak duration exceeds safe limit of ${HARD_LIMITS.maxDurationSeconds}s`);
+  }
+  
+  const baseConfig = args.config ? JSON.parse(fs.readFileSync(args.config, 'utf8')) : {
+    endpoints: [{ url: args.url, method: args.method || 'GET' }]
+  };
+  
+  baseConfig.stages = [
+    { name: 'soak', durationSeconds: duration, concurrency: Number(args.concurrency || 10), rps: Number(args.rps || 20) }
+  ];
+  baseConfig.name = 'soak-test';
+  
+  console.log(`🕐 Starting Soak Test (sustained ${duration}s load)\n`);
+  const normalized = normalizeConfig({ ...args, _: ['run'], config: null });
+  normalized.stages = baseConfig.stages.map(normalizeStage);
+  normalized.durationSeconds = duration;
+  
+  const { summary, results } = await runTest(normalized);
+  return { summary, results };
+}
+
+// New Feature: Stress test (gradually increasing load)
+async function runStressTest(args) {
+  if (!args.url && !args.config) throw new Error('stress requires --url or --config');
+  
+  const baseConfig = args.config ? JSON.parse(fs.readFileSync(args.config, 'utf8')) : {
+    endpoints: [{ url: args.url, method: args.method || 'GET' }]
+  };
+  
+  baseConfig.stages = [
+    { name: 'stage-1', durationSeconds: 60, concurrency: 5, rps: 10 },
+    { name: 'stage-2', durationSeconds: 60, concurrency: 10, rps: 20 },
+    { name: 'stage-3', durationSeconds: 60, concurrency: 20, rps: 40 },
+    { name: 'stage-4', durationSeconds: 60, concurrency: 40, rps: 80 },
+    { name: 'stage-5', durationSeconds: 60, concurrency: 60, rps: 120 }
+  ];
+  baseConfig.name = 'stress-test';
+  
+  console.log('📈 Starting Stress Test (gradually increasing load)\n');
+  const normalized = normalizeConfig({ ...args, _: ['run'], config: null });
+  normalized.stages = baseConfig.stages.map(normalizeStage);
+  normalized.durationSeconds = normalized.stages.reduce((sum, s) => sum + s.durationSeconds, 0);
+  
+  const { summary, results } = await runTest(normalized);
+  return { summary, results };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0] || 'help';
@@ -504,12 +683,40 @@ async function main() {
   if (command === 'sample') { createSample(args.out || 'load-test.json'); return; }
   if (command === 'validate') { validateConfigCommand(args); return; }
   if (command === 'plan') { printPlan(normalizeConfig(args)); return; }
+  if (command === 'compare') {
+    if (!args._ [1] || !args._[2]) throw new Error('compare requires two report files: compare <file1> <file2>');
+    compareReports(args._[1], args._[2]);
+    return;
+  }
   if (!args['i-own-this-target']) throw new Error('Missing required safety flag: --i-own-this-target');
   if (command === 'rate-limit') { await runRateLimitCheck(args); return; }
+  if (command === 'spike') {
+    const { summary, results } = await runSpikeTest(args);
+    printSummary(summary);
+    await saveReports(args, summary, results);
+    return;
+  }
+  if (command === 'soak') {
+    const { summary, results } = await runSoakTest(args);
+    printSummary(summary);
+    await saveReports(args, summary, results);
+    return;
+  }
+  if (command === 'stress') {
+    const { summary, results } = await runStressTest(args);
+    printSummary(summary);
+    await saveReports(args, summary, results);
+    return;
+  }
   if (command !== 'run') throw new Error(`Unknown command: ${command}`);
   const config = normalizeConfig(args);
   const { summary, results } = await runTest(config);
   printSummary(summary);
+  await saveReports(args, summary, results);
+  if (Object.values(summary.thresholds || {}).some(v => !v.pass)) process.exitCode = 2;
+}
+
+async function saveReports(args, summary, results) {
   const defaultOut = `reports/report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   const out = args.out || defaultOut;
   ensureDirFor(out);
@@ -518,7 +725,12 @@ async function main() {
   if (args.csv) { writeCsv(args.csv, results); console.log(`CSV report saved: ${args.csv}`); }
   if (args.html) { writeHtmlReport(args.html, summary, results); console.log(`HTML report saved: ${args.html}`); }
   if (args.junit) { writeJunitReport(args.junit, summary); console.log(`JUnit report saved: ${args.junit}`); }
-  if (Object.values(summary.thresholds || {}).some(v => !v.pass)) process.exitCode = 2;
+  if (args.webhook) await sendWebhook(args.webhook, summary);
+  if (args.slack) await sendSlackNotification(args.slack, summary);
+  if (args.compare) {
+    console.log('\n');
+    compareReports(args.compare, out);
+  }
 }
 
 main().catch(err => { console.error(`Error: ${err.message}`); process.exit(1); });

@@ -1,0 +1,49 @@
+{
+  "name": "stress-test-example",
+  "stages": [
+    {
+      "name": "stage-1",
+      "durationSeconds": 60,
+      "concurrency": 5,
+      "rps": 10
+    },
+    {
+      "name": "stage-2",
+      "durationSeconds": 60,
+      "concurrency": 10,
+      "rps": 20
+    },
+    {
+      "name": "stage-3",
+      "durationSeconds": 60,
+      "concurrency": 20,
+      "rps": 40
+    },
+    {
+      "name": "stage-4",
+      "durationSeconds": 60,
+      "concurrency": 40,
+      "rps": 80
+    },
+    {
+      "name": "stage-5",
+      "durationSeconds": 60,
+      "concurrency": 60,
+      "rps": 120
+    }
+  ],
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.10,
+    "p95Ms": 2000,
+    "p99Ms": 5000
+  },
+  "endpoints": [
+    {
+      "name": "stress-endpoint",
+      "method": "GET",
+      "url": "http://localhost:3000/api/heavy",
+      "weight": 1
+    }
+  ]
+}

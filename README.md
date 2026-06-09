@@ -13,10 +13,16 @@ This is **not** a DDoS tool. It is designed for safe capacity, performance, rate
 
 - ✅ **Controlled Load Testing** - Configurable concurrency, RPS, and duration with hard safety limits
 - ✅ **Staged Testing** - Warm-up, steady-state, and cool-down phases
+- ✅ **Spike Testing** - Test system behavior under sudden traffic increases
+- ✅ **Soak Testing** - Sustained load for stability and memory leak detection
+- ✅ **Stress Testing** - Gradually increasing load to find breaking points
 - ✅ **Auth Flow Testing** - Setup requests with token extraction
 - ✅ **GraphQL Support** - Native GraphQL endpoint testing
 - ✅ **Rate-Limit Verification** - Safe verification of rate-limiting behavior
 - ✅ **Environment Profiles** - Different configurations for local, staging, production
+- ✅ **Report Comparison** - Side-by-side comparison of test runs
+- ✅ **Webhook Integration** - Send results to custom webhooks
+- ✅ **Slack Notifications** - Real-time test results in Slack
 - ✅ **Multiple Report Formats** - JSON, CSV, HTML, and JUnit XML reports
 - ✅ **Docker Support** - Containerized testing environment
 - ✅ **CI/CD Ready** - Exit codes suitable for automation
@@ -87,10 +93,14 @@ sll plan --config examples/advanced.json --env local
 | Command | Description |
 |---------|-------------|
 | `run` | Run a controlled load test |
+| `spike` | Run a spike test (baseline → spike → recovery) |
+| `soak` | Run a soak test (sustained load) |
+| `stress` | Run a stress test (gradually increasing load) |
 | `validate` | Validate config without sending traffic |
 | `plan` | Preview resolved test plan without sending traffic |
 | `sample` | Create a sample config file |
 | `rate-limit` | Safe rate-limit verification for owned endpoints |
+| `compare` | Compare two test reports side-by-side |
 | `version` | Show version |
 | `help` | Show help |
 
@@ -112,6 +122,57 @@ sll plan --config examples/advanced.json --env local
     }
   ]
 }
+```
+
+### Spike Test
+
+```bash
+# Test system behavior under sudden traffic spike
+sll spike \
+  --url http://localhost:3000/api/health \
+  --i-own-this-target \
+  --html reports/spike-test.html
+```
+
+### Soak Test
+
+```bash
+# Test for memory leaks with sustained load
+sll soak \
+  --url http://localhost:3000/api/health \
+  --duration 300 \
+  --concurrency 10 \
+  --rps 20 \
+  --i-own-this-target \
+  --html reports/soak-test.html
+```
+
+### Stress Test
+
+```bash
+# Find breaking point with gradually increasing load
+sll stress \
+  --url http://localhost:3000/api/health \
+  --i-own-this-target \
+  --html reports/stress-test.html
+```
+
+### Compare Reports
+
+```bash
+# Compare two test runs
+sll compare reports/baseline.json reports/after-optimization.json
+```
+
+### Webhook Integration
+
+```bash
+# Send results to webhook
+sll run \
+  --config load-test.json \
+  --i-own-this-target \
+  --webhook https://your-webhook.com/endpoint \
+  --slack https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
 ```
 
 ### Staged Ramp Testing
@@ -255,6 +316,7 @@ Example GitHub Actions workflow: [.github/workflows/safe-load-lab.yml](.github/w
 
 | Document | Description |
 |----------|-------------|
+| [FEATURES.md](FEATURES.md) | Complete feature guide with examples |
 | [SETUP.md](SETUP.md) | Detailed setup and troubleshooting guide |
 | [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) | Complete configuration reference |
 | [SECURITY.md](SECURITY.md) | Safety and security guidelines |

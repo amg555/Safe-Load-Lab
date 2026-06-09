@@ -1,0 +1,28 @@
+{
+  "name": "soak-test-example",
+  "stages": [
+    {
+      "name": "soak",
+      "durationSeconds": 300,
+      "concurrency": 10,
+      "rps": 20
+    }
+  ],
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.01,
+    "p95Ms": 500,
+    "p99Ms": 1000
+  },
+  "endpoints": [
+    {
+      "name": "api-endpoint",
+      "method": "GET",
+      "url": "http://localhost:3000/api/resource",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "weight": 1
+    }
+  ]
+}

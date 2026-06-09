@@ -1,0 +1,43 @@
+{
+  "name": "spike-test-example",
+  "stages": [
+    {
+      "name": "baseline",
+      "durationSeconds": 30,
+      "concurrency": 2,
+      "rps": 5
+    },
+    {
+      "name": "spike",
+      "durationSeconds": 60,
+      "concurrency": 20,
+      "rps": 50
+    },
+    {
+      "name": "recovery",
+      "durationSeconds": 30,
+      "concurrency": 2,
+      "rps": 5
+    }
+  ],
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.05,
+    "p95Ms": 1000,
+    "p99Ms": 2000
+  },
+  "endpoints": [
+    {
+      "name": "api-health",
+      "method": "GET",
+      "url": "http://localhost:3000/api/health",
+      "weight": 1
+    },
+    {
+      "name": "api-data",
+      "method": "GET",
+      "url": "http://localhost:3000/api/data",
+      "weight": 3
+    }
+  ]
+}
