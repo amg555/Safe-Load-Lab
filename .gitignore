@@ -34,6 +34,9 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Kiro IDE integration
+.kiro/
+
 # Package-lock is optional to commit
 # package-lock.json
 
