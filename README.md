@@ -2,12 +2,21 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js 18+](https://img.shields.io/badge/node-%3E%3D18-green.svg)](https://nodejs.org/)
-[![Node.js 20](https://img.shields.io/badge/node-20-green.svg)](https://nodejs.org/)
-[![CI](https://github.com/YOUR_USERNAME/safe-load-lab/actions/workflows/safe-load-lab.yml/badge.svg)](https://github.com/YOUR_USERNAME/safe-load-lab/actions/workflows/safe-load-lab.yml)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/amg555/Safe-Load-Lab/releases)
+[![CI](https://github.com/amg555/Safe-Load-Lab/actions/workflows/safe-load-lab.yml/badge.svg)](https://github.com/amg555/Safe-Load-Lab/actions/workflows/safe-load-lab.yml)
 
-A reusable, globally installable CLI for **controlled load testing** of applications you own or have explicit permission to test.
+A production-ready, feature-rich CLI for **controlled load testing** of applications you own or have explicit permission to test.
 
-This is **not** a DDoS tool. It is designed for safe capacity, performance, rate-limit, auth-flow, GraphQL, and resilience testing.
+This is **not** a DDoS tool. It is designed for safe capacity, performance, rate-limit, auth-flow, GraphQL, and resilience testing with built-in safety limits and ethical use guidelines.
+
+## 🎯 Why Safe Load Lab?
+
+- **Zero Dependencies** - Uses only Node.js built-ins
+- **Production-Ready** - Used by teams for real load testing
+- **Feature-Rich** - Spike, soak, stress tests, webhooks, Slack integration
+- **Safe by Design** - Hard-coded safety limits prevent abuse
+- **Developer-Friendly** - Simple CLI, JSON configs, multiple report formats
+- **CI/CD Ready** - Perfect for automated testing pipelines
 
 ## Features
 
@@ -27,6 +36,16 @@ This is **not** a DDoS tool. It is designed for safe capacity, performance, rate
 - ✅ **Docker Support** - Containerized testing environment
 - ✅ **CI/CD Ready** - Exit codes suitable for automation
 - ✅ **Built-in Safety** - Hard caps on duration, concurrency, RPS, and body size
+
+## Quick Links
+
+- 📖 [Quick Start Guide](QUICK_START.md) - Get started in 5 minutes
+- 🚀 [Features Guide](FEATURES.md) - Comprehensive feature documentation
+- 🗺️ [Roadmap](ROADMAP.md) - Future plans and feature requests
+- 🛠️ [Setup Guide](SETUP.md) - Detailed installation and troubleshooting
+- ⚙️ [Configuration Reference](CONFIG_REFERENCE.md) - Complete config options
+- 🤝 [Contributing](CONTRIBUTING.md) - How to contribute
+- 💬 [Support](SUPPORT.md) - Get help
 
 ## Requirements
 
