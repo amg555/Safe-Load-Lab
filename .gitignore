@@ -1,8 +1,42 @@
+# Dependencies
 node_modules/
-reports/*
+
+# Reports and generated artifacts
+reports/*.json
+reports/*.csv
+reports/*.html
+reports/*.xml
 !reports/.gitkeep
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
 .env
 .env.*
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Test coverage
 coverage/
+
+# Package-lock is optional to commit
+# package-lock.json
+
+# Build output
+dist/
+build/
