@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://safe-load-lab.local/config.schema.json",
+  "title": "Safe Load Lab Config",
+  "type": "object",
+  "required": ["endpoints"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string" },
+    "defaultEnv": { "type": "string" },
+    "baseUrl": { "type": "string" },
+    "variables": { "type": "object" },
+    "environments": { "type": "object" },
+    "durationSeconds": { "type": "number", "minimum": 1, "maximum": 600 },
+    "concurrency": { "type": "number", "minimum": 1, "maximum": 100 },
+    "rps": { "type": "number", "minimum": 1, "maximum": 200 },
+    "timeoutMs": { "type": "number", "minimum": 100, "maximum": 120000 },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["durationSeconds", "concurrency", "rps"],
+        "properties": {
+          "name": { "type": "string" },
+          "durationSeconds": { "type": "number", "minimum": 1, "maximum": 600 },
+          "concurrency": { "type": "number", "minimum": 1, "maximum": 100 },
+          "rps": { "type": "number", "minimum": 1, "maximum": 200 }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "maxErrorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "p99Ms": { "type": "number", "minimum": 0 }
+      }
+    },
+    "setup": { "type": "array", "items": { "$ref": "#/$defs/endpoint" } },
+    "endpoints": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/endpoint" } }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "required": ["url"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "method": { "type": "string" },
+        "url": { "type": "string" },
+        "headers": { "type": "object" },
+        "body": {},
+        "weight": { "type": "number", "minimum": 0 },
+        "expectStatus": {},
+        "extract": { "type": "object" },
+        "graphql": {
+          "type": "object",
+          "required": ["query"],
+          "properties": {
+            "query": { "type": "string" },
+            "variables": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

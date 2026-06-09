@@ -1,0 +1,88 @@
+{
+  "name": "advanced-api-test",
+  "defaultEnv": "local",
+  "environments": {
+    "local": {
+      "baseUrl": "http://localhost:3000",
+      "variables": {
+        "email": "test@example.com",
+        "password": "test-password"
+      }
+    },
+    "staging": {
+      "baseUrl": "https://staging.example.com",
+      "variables": {
+        "email": "load-test@example.com",
+        "password": "replace-me"
+      }
+    }
+  },
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.02,
+    "p95Ms": 750,
+    "p99Ms": 1500
+  },
+  "setup": [
+    {
+      "name": "login-and-extract-token",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "{{email}}",
+        "password": "{{password}}"
+      },
+      "expectStatus": 200,
+      "extract": {
+        "token": "body.token"
+      }
+    }
+  ],
+  "endpoints": [
+    {
+      "name": "authenticated-profile",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/profile",
+      "headers": {
+        "Authorization": "Bearer {{token}}",
+        "Accept": "application/json"
+      },
+      "weight": 2
+    },
+    {
+      "name": "graphql-viewer",
+      "url": "{{baseUrl}}/graphql",
+      "headers": {
+        "Authorization": "Bearer {{token}}"
+      },
+      "graphql": {
+        "query": "query Viewer { viewer { id email } }",
+        "variables": {}
+      },
+      "weight": 1
+    }
+  ],
+  "stages": [
+    {
+      "name": "warm-up",
+      "durationSeconds": 30,
+      "concurrency": 3,
+      "rps": 8
+    },
+    {
+      "name": "steady",
+      "durationSeconds": 60,
+      "concurrency": 10,
+      "rps": 25
+    },
+    {
+      "name": "cool-down",
+      "durationSeconds": 30,
+      "concurrency": 3,
+      "rps": 8
+    }
+  ]
+}

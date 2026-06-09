@@ -1,0 +1,30 @@
+{
+  "name": "basic-local-api-test",
+  "durationSeconds": 30,
+  "concurrency": 5,
+  "rps": 10,
+  "timeoutMs": 10000,
+  "thresholds": {
+    "maxErrorRate": 0.01,
+    "p95Ms": 500,
+    "p99Ms": 1000
+  },
+  "endpoints": [
+    {
+      "name": "health-check",
+      "method": "GET",
+      "url": "http://localhost:3000/api/health",
+      "headers": {},
+      "weight": 3
+    },
+    {
+      "name": "items-list",
+      "method": "GET",
+      "url": "http://localhost:3000/api/items",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "weight": 1
+    }
+  ]
+}

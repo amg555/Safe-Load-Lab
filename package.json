@@ -1,0 +1,46 @@
+{
+  "name": "safe-load-lab",
+  "version": "1.2.0",
+  "description": "A reusable, controlled load-testing CLI for applications you own or have permission to test",
+  "type": "module",
+  "bin": {
+    "safe-load-lab": "./bin/safe-load-lab.js",
+    "sll": "./bin/safe-load-lab.js"
+  },
+  "main": "./bin/safe-load-lab.js",
+  "scripts": {
+    "start": "node ./bin/safe-load-lab.js",
+    "example": "node ./bin/safe-load-lab.js run --config examples/basic.json --i-own-this-target",
+    "validate": "node ./bin/safe-load-lab.js validate --config examples/basic.json",
+    "test": "node --test",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix"
+  },
+  "keywords": [
+    "load-testing",
+    "performance",
+    "stress-testing",
+    "rate-limit-testing",
+    "resilience",
+    "benchmark",
+    "api-testing",
+    "performance-testing"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/safe-load-lab.git"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/safe-load-lab",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/safe-load-lab/issues"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/safe-load-lab"
+  },
+  "keywords": ["load-testing", "performance", "stress-testing", "rate-limit-testing", "resilience"]
+}

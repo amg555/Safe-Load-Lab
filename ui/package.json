@@ -1,0 +1,13 @@
+{
+  "name": "safe-load-lab-ui",
+  "version": "1.0.0",
+  "description": "Web UI for Safe Load Lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
